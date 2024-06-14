@@ -1,59 +1,97 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
+using Unity.VisualScripting;
 
 public class PlayerBehaviour : MonoBehaviour
 {
-    public Camera Camera;
-    public int playerSpeed = 1;
-    public float mouseSpeed = 2.0f;
-    private Vector3 startPosition;
+    [Header("Camera")]
+    public Transform orientation;
+    
+
+    [Header("Movement Speed")]
+
+    public float moveSpeed;
+    public float walkSpeed;
+    public float sprintSpeed;
+    public float speedLimit;
+    private float currentSpeed;
+
+
+   [Header("Jump Settings")]
+
+    public LayerMask IsGround;
+
+    public float jumpForce;
+    public float jumpCooldown;
+
+    private bool IsreadyToJump;
+    private bool Isgrounded;
+
+     private Rigidbody rb;
+
+    private CharacterController characterController ;
+    private float horizontalInput;
+    private float verticalInput;
+
 
     
-    private float xRotation = 0.0f;
-    private float yRotation = 0.0f;
-    private float mouseX;
-    private float mouseY;
 
-    void Start()
+    private void Start()
     {
-        Cursor.lockState = CursorLockMode.Locked;
+        characterController = GetComponent<CharacterController>();
+         rb = GetComponent<Rigidbody>();
+         rb.freezeRotation = true;
+        IsreadyToJump = true;
+        Isgrounded = true;
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        bodyMotion();
-        bodyRotation();
+        Isgrounded = Physics.Raycast(transform.position, Vector3.down, 1f, IsGround);
+        MyInput();
     }
-
-    void bodyMotion() {
-
-        if (Input.GetKey(KeyCode.LeftShift))
-            playerSpeed = 20;
-        else
-            playerSpeed = 5;
-
-        if (Input.GetKey(KeyCode.W))
-            transform.Translate(Vector3.forward * playerSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.S))
-            transform.Translate(Vector3.back * playerSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.A))
-            transform.Translate(Vector3.left * playerSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.D))
-            transform.Translate(Vector3.right * playerSpeed * Time.deltaTime);
+    private void FixedUpdate()
+    {
+        MovePlayer();
     }
-    void bodyRotation() {
-        mouseX = Input.GetAxis("Mouse X");
-        mouseY = -Input.GetAxis("Mouse Y");
+    private void MyInput()
+    {
+        currentSpeed = !Input.GetKey(KeyCode.LeftShift) ? walkSpeed : sprintSpeed;
 
-        xRotation += mouseX * mouseSpeed;
-        yRotation += mouseY * mouseSpeed;
-        if(Camera.transform.eulerAngles.y > 90)
+        horizontalInput = Input.GetAxisRaw("Horizontal") * currentSpeed;
+        verticalInput = Input.GetAxisRaw("Vertical") * currentSpeed;
+
+        // when to jump
+        if (Input.GetKey(KeyCode.Space) && IsreadyToJump && Isgrounded)
         {
-            yRotation = 90;
-        }
-        
-        Camera.transform.eulerAngles = new Vector3(yRotation, xRotation, 0.0f);
-        transform.eulerAngles = new Vector3(0, xRotation, 0.0f);
+            IsreadyToJump = false;
 
+            Jump();
+
+            Invoke(nameof(ResetJump), jumpCooldown);
+        }
+    }
+
+    private void MovePlayer()
+    {
+        Vector3 moveDirection = (orientation.forward * verticalInput + orientation.right * horizontalInput);
+        characterController.Move(moveDirection * Time.deltaTime);
+        /*   if (rb.velocity.magnitude < speedLimit)
+        rb.AddForce(moveDirection.normalized * moveSpeed * 10f  , ForceMode.Acceleration);
+     /*/
+    }
+
+    private void Jump()
+    {
+        // reset y velocity
+         rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+
+          rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+    }
+    private void ResetJump()
+    {
+        IsreadyToJump = true;
     }
 }
